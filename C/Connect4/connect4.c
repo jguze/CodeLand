@@ -111,14 +111,15 @@ int diag(tuple coord, int signx, int signy)
 
 int check_vert(tuple coord)
 {
-    return diag(coord, 0, -1);
+    return diag(coord, 1, 0);
 }
+
 
 int check_hor(tuple coord)
 {
     int res = 0;
-    res += diag(coord, 1, 0);
-    res += diag(coord, -1, 0);
+    res += diag(coord, 0, 1);
+    res += diag(coord, 0, -1);
     if (res > 0)
         return 1;
     return 0;
