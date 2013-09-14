@@ -1,11 +1,24 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
 #define GRIDSIZE 6
+#define PORT 2002
+#define MAX_LINE 1000
 
 char grid[GRIDSIZE][GRIDSIZE];
 int current_player;
 char EMPTY = '_';
 char PLAYER_1_ICON = 'X';
 char PLAYER_2_ICON = 'O';
+int list_s;		// listening socket
+int conn_s;		// connection socket
+short int port;	// port number
+struct sockaddr_in serv_addr;		// socket address structure
+char buffer[MAX_LINE];	//character buffer
 
 typedef struct 
 {
@@ -114,7 +127,6 @@ int check_vert(tuple coord)
     return diag(coord, 1, 0);
 }
 
-
 int check_hor(tuple coord)
 {
     int res = 0;
@@ -134,8 +146,7 @@ int check_diag(tuple coord)
     res += diag(coord, 1, 1);
     if (res > 0)
         return 1;
-    return 0;
-        
+    return 0;   
 }
 
 int has_won(tuple coord)
@@ -149,8 +160,42 @@ int has_won(tuple coord)
     return 0;
 }
 
+void network_setup()
+{
+	port = PORT;
+	if ( (list_s = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		fprintf(stderr, "SERVER: Error creating listening socket.\n");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(&serv_addr, 0, sizeof(serv_addr));
+    serv_addr.sin_family      = AF_INET;
+    serv_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    serv_addr.sin_port        = htons(port);
+	if ( bind(list_s, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+	{
+		fprintf(stderr, "SERVER: Error calling bind().\n");
+		exit(EXIT_FAILURE);
+	}
+	
+	if ( listen(list_s, 10) < 0)
+	{
+		fprintf(stderr, "SERVER: Error calling listen().\n");
+		exit(EXIT_FAILURE);		
+	}
+	
+	/* Wait for a client to connect, and bind them to a player */
+	conn_s = accept(list_s, (struct sockaddr*)NULL, NULL);
+	read(conn_s, buffer, MAX_LINE);
+	printf("CLIENT SAYS: %s\n", buffer);
+	snprintf(buffer, sizeof(buffer), "Connected to Connect4 server. Playing against server player\n");
+	write(conn_s, buffer, strlen(buffer));
+}
+
 void play()
 {
+	network_setup();
 	reset();
     current_player = 0;
     int col;
